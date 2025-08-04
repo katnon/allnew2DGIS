@@ -15,21 +15,35 @@
  * 
  * 🎯 【제공 기능】
  * - ✏️ 편집 모드: 선택한 도형의 점을 드래그하여 모양 수정
- * - 🗑️ 삭제 모드: 클릭한 도형을 즉시 삭제
+ * - 🗑️ 선택 삭제 모드: 클릭한 도형을 즉시 삭제 (우클릭으로 종료)
  * - 🧹 전체 삭제: 모든 그려진 도형과 텍스트 일괄 제거
- * - 🔗 연관 데이터 관리: 텍스트-점 마커 쌍, 측정 결과 오버레이 연동 삭제
+ * - 🔗 연관 데이터 관리: POI 팝업 정리 등 관련 데이터 일관성 유지
+ * - 🎭 UI 상태 관리: 버튼 텍스트 동적 변경 및 시각적 피드백
+ * - 🔄 모드 전환: 그리기 모드와 상호 배타적 작동
+ * 
+ * 📝 【편집 모드 상세】
+ * - Select 인터랙션: 편집할 도형 선택
+ * - Modify 인터랙션: 선택된 도형의 꼭지점 드래그 편집
+ * - 시각적 피드백: 선택된 도형 빨간색 강조 표시
+ * - 실시간 편집: 드래그하는 동안 즉시 모양 변경
+ * 
+ * 🗑️ 【선택 삭제 모드 상세】
+ * - 클릭 기반 삭제: 도형을 클릭하면 즉시 삭제
+ * - 우클릭 종료: 우클릭으로 삭제 모드 안전하게 종료
+ * - 버튼 상태: "선택 삭제" ↔ "삭제 취소" 텍스트 토글
+ * - 이벤트 관리: 클릭 핸들러 안전한 추가/제거
  * 
  * 📤 【데이터 연동 관계】
- * - drawSource/textSource ← mapConfig.js 에서 생성
- * - drawLayer/textLayer ← main.js 에서 참조
- * - 측정 결과 ← measurement.js 모듈과 연동
- * - window.gisMap ← main.js 에서 설정
+ * - vectorSource/vectorLayer ← mapConfig.js 에서 생성
+ * - drawTools.js ← 그리기 모드와 상호 배타적 작동
+ * - test.html ← UI 버튼 이벤트 연결
  * 
  * 🔧 【상태 관리】
- * - 편집/삭제 모드 상호 배타적 활성화
- * - Select/Modify 인터랙션 생명주기 관리
- * - 모드 전환 시 기존 인터랙션 자동 정리
- * - 연관 데이터 일관성 유지
+ * - isEditMode: 편집 모드 활성화 상태
+ * - isSelectDeleteMode: 선택 삭제 모드 활성화 상태
+ * - selectInteraction: Select 인터랙션 객체
+ * - modifyInteraction: Modify 인터랙션 객체
+ * - 이벤트 핸들러 생명주기 관리
  */
 
 import { map, vectorSource, vectorLayer, updateStatus } from './mapConfig.js';

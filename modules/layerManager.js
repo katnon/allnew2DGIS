@@ -1,5 +1,14 @@
 /**
- * 📋 레이어 관리 모듈 (Layer Management Module)
+ * 📋 레이어  * 📤 【데이터 연동 관계】
+ * - map, layers ← mapConfig.js에서 가져온 레이어들
+ * - loadAdminData ← mapConfig.js의 행정구역 로드 함수
+ * - UI 버튼 상태 동기화
+ * 
+ * 🔧 【상태 관리】
+ * - 베이스 레이어 상호 배타적 활성화
+ * - 오버레이 레이어 독립적 토글
+ * - UI 버튼 상태와 레이어 상태 동기화
+ * - 관련 기능 자동 실행 및 정리ayer Management Module)
  * 
  * 【모듈 역할】
  * 지도의 모든 레이어 가시성을 제어하고 UI와 동기화하는 중앙 관리 시스템입니다.
