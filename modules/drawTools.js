@@ -1,10 +1,21 @@
 /**
- * 🎨 그리 * 🎯 【제공 기능】
+ * 🎨 그리기 도구 관리 모듈 (Drawing Tools Management Module)
+ * 
+ * 【모듈 역할】
+ * OpenLayers의 Draw 인터랙션을 활용하여 사용자가 지도 위에 다양한 도형을 그릴 수 있게 합니다.
+ * 
+ * 🔄 【정보 흐름 (Data Flow)】
+ * 1. UI 버튼 클릭 → toggleTool() 함수 호출
+ * 2. 기존 인터랙션 정리 → 새로운 Draw 인터랙션 생성
+ * 3. 지도에 인터랙션 추가 → 사용자 입력 대기
+ * 4. 사용자 그리기 완료 → 'drawend' 이벤트 발생
+ * 5. Feature 생성 → VectorSource에 추가 → 자동으로 도구 해제
+ * 
+ * 🎯 【제공 기능】
  * - 📏 선(LineString) 그리기: 연결된 점들로 구성된 선분, 우클릭으로 완성
  * - 🔷 다각형(Polygon) 그리기: 닫힌 영역 생성, 더블클릭으로 완성
  * - 🔵 원(Circle) 그리기: 중심점과 반지름 정의, 우클릭으로 취소
- * - 📍 점(Point) 그리기: 단일 지점 마커
- * - 📝 텍스트 라벨: 클릭한 위치에 사용자 입력 텍스트 표시
+ * -  텍스트 라벨: 클릭한 위치에 사용자 입력 텍스트 표시
  * - 🔄 도구 전환: 한 번에 하나의 도구만 활성화, 상호 배타적 작동
  * - 🎭 버튼 상태 관리: 활성화 시 "취소"로 텍스트 변경, 시각적 피드백
  * 
@@ -13,7 +24,7 @@
  * - 원 그리기: 그리기 취소
  * - 다른 도구: 기본 동작 유지
  * 
- * 📤 【데이터 출력 경로】
+ * 📤 【데이터 연동 관계】
  * - vectorSource ← mapConfig.js 에서 생성된 Vector 소스
  * - map ← mapConfig.js 에서 생성된 지도 객체
  * - editTools.js와 연계하여 삭제 기능 위임
@@ -28,34 +39,7 @@
  * 🎨 【UI 상호작용】
  * - 도구 버튼 클릭 시 active 클래스 추가
  * - 텍스트 입력 시 팝업 인터페이스 제공
- * - 상태바를 통한 사용자 안내 메시지ing Tools Management Module)
- * 
- * 【모듈 역할】
- * OpenLayers의 Draw 인터랙션을 활용하여 사용자가 지도 위에 다양한 도형을 그릴 수 있게 합니다.
- * 
- * 🔄 【정보 흐름 (Data Flow)】
- * 1. UI 버튼 클릭 → toggleTool() 함수 호출
- * 2. 기존 인터랙션 정리 → 새로운 Draw 인터랙션 생성
- * 3. 지도에 인터랙션 추가 → 사용자 입력 대기
- * 4. 사용자 그리기 완료 → 'drawend' 이벤트 발생
- * 5. Feature 생성 → VectorSource에 추가 → 자동으로 도구 해제
- * 
- * 🎯 【제공 기능】
- * - 📏 선(LineString) 그리기: 연결된 점들로 구성된 선분
- * - 🔷 다각형(Polygon) 그리기: 닫힌 영역 생성 
- * - 🔵 원(Circle) 그리기: 중심점과 반지름으로 정의
- * - � 점(Point) 그리기: 단일 지점 마커
- * - �📝 텍스트 라벨: 클릭한 위치에 사용자 입력 텍스트 표시
- * 
- * 📤 【데이터 출력 경로】
- * - vectorSource ← mapConfig.js 에서 생성된 Vector 소스
- * - map ← mapConfig.js 에서 생성된 지도 객체
- * 
- * 🔧 【상태 관리】
- * - 한 번에 하나의 그리기 도구만 활성화 가능
- * - 도구 전환 시 이전 인터랙션 자동 정리
- * - 그리기 완료 시 자동으로 도구 해제
- * - 토글 버튼 상태 관리
+ * - 상태바를 통한 사용자 안내 메시지
  */
 
 import { map, vectorSource, vectorLayer, updateStatus } from './mapConfig.js';
@@ -69,8 +53,7 @@ const originalButtonTexts = {
     'text': '텍스트',
     'line': '선',
     'polygon': '면',
-    'circle': '원',
-    'point': '점'
+    'circle': '원'
 };
 
 /**
@@ -92,7 +75,7 @@ function resetButtonText(button, toolType) {
 
 /**
  * 그리기 도구 토글
- * @param {string} toolType - 도구 타입 ('line', 'polygon', 'circle', 'point', 'text')
+ * @param {string} toolType - 도구 타입 ('line', 'polygon', 'circle', 'text')
  * @param {HTMLElement} button - 클릭된 버튼 요소
  */
 export function toggleTool(toolType, button) {
@@ -170,16 +153,12 @@ function extractToolTypeFromButton(button) {
 
 /**
  * 그리기 도구 활성화
- * @param {string} type - 그리기 타입 ('point', 'line', 'polygon', 'circle')
+ * @param {string} type - 그리기 타입 ('line', 'polygon', 'circle')
  */
 function enableDrawing(type) {
     let geometryType;
     
     switch(type) {
-        case 'point':
-            geometryType = 'Point';
-            updateStatus('지도를 클릭하여 점을 그리세요');
-            break;
         case 'line':
             geometryType = 'LineString';
             updateStatus('지도를 클릭하여 선을 그리세요 (더블클릭으로 완료)');

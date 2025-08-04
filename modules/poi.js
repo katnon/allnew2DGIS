@@ -1,29 +1,25 @@
 /**
- * 📍 PO * 🎯 【제공 기능】
- * - 🔍 자동 POI 검색: 지도 중심 기준 반경 3km 내 모든 카테고리 통합 검색
+ * 📍 POI 관리 모듈 (Point of Interest Management Module)
+ * 
+ * 【모듈 역할】
+ * Kakao REST API를 사용하여 카테고리별 POI를 검색하고 지도에 표시하는 모듈입니다.
+ * 
+ * 🔄 【정보 흐름 (Data Flow)】
+ * 1. POI 레이어 활성화 → searchNearbyPOIs() 자동 호출
+ * 2. 현재 지도 중심점과 반경 기반 Kakao API 요청
+ * 3. 카테고리별 POI 데이터 수신 및 파싱
+ * 4. Feature 생성 → poiSource에 추가 → 지도에 마커 표시
+ * 5. POI 클릭 → 상세 정보 팝업 표시
+ * 
+ * 🎯 【제공 기능】
+ * - 🔍 자동 POI 검색: 지도 중심 기준 반경 1.5km 내 모든 카테고리 통합 검색
  * - 📍 카테고리별 분류: 음식점, 카페, 주유소, 지하철역, 은행, 편의점, 병원, 약국 등
  * - 🎯 클릭 기반 검색: 지도 클릭 시 해당 좌표에서 가장 가까운 POI 검색
  * - 📊 거리 계산: 정확한 미터/킬로미터 단위 거리 표시
  * - 💬 팝업 시스템: POI 상세 정보 표시 (이름, 주소, 전화번호, 거리)
  * - 🟢 임시 마커: 클릭한 위치에 녹색 마커로 시각적 피드백
  * - 📋 리스트 패널: 검색 결과를 목록으로 표시 및 개별 접근
- * - 🔄 재검색 기능: 지도 이동 후 현재 위치에서 다시 검색nt of Interest) 관리 모듈 (POI Management Module)
- * 
- * 【모듈 역할】
- * Kakao REST API를 사용하여 카테고리별 POI를 검색하고 지도에 표시하는 모듈입니다.
- * 
- * 🔄 【정보 흐름 (Data Flow)】
- * 1. 카테고리 버튼 클릭 → searchPOI() 호출
- * 2. 현재 지도 중심점과 반경 기반 Kakao API 요청
- * 3. 카테고리별 POI 데이터 수신 및 파싱
- * 4. Feature 생성 → poiSource에 추가 → 지도에 마커 표시
- * 5. POI 클릭 → 상세 정보 표시
- * 
- * 🎯 【제공 기능】
- * - 🔍 카테고리별 POI 검색: 음식점, 카페, 주유소, 지하철역, 은행, 편의점, 병원, 약국
- * - � POI 지도 표시: 카테고리별 색상 구분 마커
- * - 🏷️ 상세 정보 표시: 클릭 시 POI 정보 팝업
- * - 🔄 레이어 토글: POI 표시/숨기기 기능
+ * - 🔄 재검색 기능: 지도 이동 후 현재 위치에서 다시 검색
  * 
  * 📤 【데이터 연동 관계】
  * - poiSource ← mapConfig.js 에서 생성된 VectorSource
@@ -31,9 +27,10 @@
  * - KAKAO_REST_KEY ← mapConfig.js 에서 가져온 API 키
  * 
  * 🔧 【상태 관리】
- * - 현재 검색된 POI 데이터
- * - 선택된 카테고리 상태
- * - 검색 중 로딩 상태
+ * - currentPOIs: 현재 검색된 POI 데이터 배열
+ * - isSearching: 검색 중 상태 플래그
+ * - poiPopup: 팝업 오버레이 객체
+ * - window.tempPOIFeature: 임시 마커 피처
  */
 
 import { map, poiSource, poiLayer, KAKAO_REST_KEY, updateStatus } from './mapConfig.js';

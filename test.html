@@ -15,8 +15,7 @@
             padding: 0;
             overflow: hidden;
             background: #f0f0f0;
-        }
-        
+        }        
         .container {
             display: flex;
             height: 100vh;
@@ -467,14 +466,16 @@
                             <button class="tool-btn" id="lineBtn" onclick="toggleTool('line', this)">선</button>
                             <button class="tool-btn" id="polygonBtn" onclick="toggleTool('polygon', this)">면</button>
                             <button class="tool-btn" id="circleBtn" onclick="toggleTool('circle', this)">원</button>
-                            <button class="tool-btn" id="pointBtn" onclick="toggleTool('point', this)">점</button>
                         </div>
                         <div class="edit-tools">
                             <button class="clear-btn" id="editBtn" onclick="toggleEditMode()">편집 모드</button>
+                            <button class="clear-btn" id="measureBtn" onclick="toggleDistanceMeasure()">거리 측정</button>
+                            <button class="clear-btn" id="areaMeasureBtn" onclick="toggleAreaMeasure()">면적 측정</button>
                         </div>
                         <div class="clear-tools">
                             <button class="clear-btn" onclick="deleteSelected()">선택 삭제</button>
                             <button class="clear-btn" onclick="clearAllDrawings()">전체 삭제</button>
+                            <button class="clear-btn" onclick="exportMapImage()" style="background: #27ae60;">이미지 저장</button>
                         </div>
                     </div>
                 </div>
@@ -509,6 +510,8 @@
         import { searchNearbyPOIs, togglePOILayer, clearPOI } from './modules/poi.js';
         import { toggleTool, deleteSelected, clearAllDrawings, confirmText, cancelText } from './modules/drawTools.js';
         import { toggleEditMode, toggleSelectDeleteMode, disableAllEditModes } from './modules/editTools.js';
+        import { toggleDistanceMeasure, toggleAreaMeasure, clearAllMeasurements } from './modules/measurement.js';
+        import { createCompass, createScaleBar, updateScaleBar, saveMapAsImage } from './modules/ui.js';
         
         // 전역 변수 (window 객체에 추가하여 HTML에서 접근 가능하게)
         window.currentTool = null;
@@ -516,6 +519,17 @@
         // 페이지 로드 시 지도 초기화
         window.onload = function() {
             initMap();
+            
+            // UI 컴포넌트 생성
+            createCompass();
+            createScaleBar();
+            
+            // 지도 객체를 전역으로 등록 (이미지 저장을 위해)
+            setTimeout(() => {
+                if (window.gisModules) {
+                    window.map = window.gisModules.map;
+                }
+            }, 100);
             
             // 전역 함수로 설정 (HTML onclick에서 사용하기 위해)
             window.toggleTool = toggleTool;
@@ -532,6 +546,11 @@
             window.toggleEditMode = toggleEditMode;
             window.toggleSelectDeleteMode = toggleSelectDeleteMode;
             window.disableAllEditModes = disableAllEditModes;
+            window.toggleDistanceMeasure = toggleDistanceMeasure;
+            window.toggleAreaMeasure = toggleAreaMeasure;
+            window.clearAllMeasurements = clearAllMeasurements;
+            window.exportMapImage = saveMapAsImage;
+            window.updateScaleBar = updateScaleBar;
             
             updateStatus('애플리케이션 로드 완료');
         };

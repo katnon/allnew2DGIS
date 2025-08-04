@@ -153,20 +153,24 @@ export function initMap() {
         })
     });
     
-    // 베이스맵 레이어들 생성
+    // 베이스맵 레이어들 생성 (CORS 안전 설정)
     osmLayer = new ol.layer.Tile({
-        source: new ol.source.OSM()
+        source: new ol.source.OSM({
+            crossOrigin: 'anonymous'
+        })
     });
     
     vworldLayer = new ol.layer.Tile({
         source: new ol.source.XYZ({
-            url: `https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Base/{z}/{y}/{x}.png`
+            url: `https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Base/{z}/{y}/{x}.png`,
+            crossOrigin: 'anonymous'
         })
     });
     
     satelliteLayer = new ol.layer.Tile({
         source: new ol.source.XYZ({
-            url: `https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Satellite/{z}/{y}/{x}.jpeg`
+            url: `https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Satellite/{z}/{y}/{x}.jpeg`,
+            crossOrigin: 'anonymous'
         })
     });
     
@@ -218,6 +222,17 @@ export function initMap() {
         // 레이어 새로고침
         vectorLayer.getSource().changed();
     });
+    
+    // 지도 이벤트 리스너 추가
+    map.getView().on('change:resolution', function() {
+        if (window.updateScaleBar) {
+            const resolution = map.getView().getResolution();
+            window.updateScaleBar(resolution);
+        }
+    });
+    
+    // 전역 접근을 위한 지도 객체 등록
+    window.gisModules = { map };
     
     updateStatus('지도 로딩 완료');
 }

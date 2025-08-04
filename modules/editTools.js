@@ -268,4 +268,9 @@ export function disableAllEditModes() {
     if (isSelectDeleteMode) {
         disableSelectDeleteMode();
     }
+    
+    // 측정 모드도 비활성화
+    if (window.disableMeasureMode) {
+        window.disableMeasureMode();
+    }
 }
