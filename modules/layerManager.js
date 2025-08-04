@@ -3,51 +3,218 @@
  * 
  * 【모듈 역할】
  * 지도의 모든 레이어 가시성을 제어하고 UI와 동기화하는 중앙 관리 시스템입니다.
- * 사용자의 레이어 패널 조작을 실제 지도 레이어 상태 변경으로 연결합니다.
  * 
  * 🔄 【정보 흐름 (Data Flow)】
- * 
- * 📥 INPUT 경로:
- * 1️⃣ UI 이벤트: 레이어 패널의 라디오버튼/체크박스 조작
- * 2️⃣ 프로그래밍 방식: 다른 모듈에서 setLayerVisibility() 호출
- * 
- * 🔄 PROCESSING:
- * - 베이스 레이어: 라디오 버튼 방식 (하나만 활성화)
- * - 오버레이 레이어: 체크박스 방식 (다중 선택)
- * - POI 레이어 특별 처리: 검색 버튼, 목록 패널 연동
- * 
- * 📤 OUTPUT:
- * - OpenLayers 레이어 객체의 setVisible() 호출
- * - UI 상태 동기화 (체크박스/라디오버튼 상태)
- * - POI 관련 UI 요소 표시/숨김
+ * 1. UI 버튼 클릭 → switchBaseLayer() 또는 toggleLayer() 호출
+ * 2. 레이어 가시성 변경 → OpenLayers 레이어 업데이트
+ * 3. UI 상태 동기화 → 버튼 스타일 업데이트
  * 
  * 🎯 【제어 대상 레이어】
+ * - 베이스 레이어: OSM, VWorld 기본, VWorld 위성
+ * - 오버레이 레이어: 행정구역, POI, 그리기 레이어
  * 
- * 🗺️ 베이스 레이어 (Base Layers) - 상호 배타적
- * - OSM: 오픈스트리트맵 
- * - Vworld Base: 브이월드 기본 지도
- * - Vworld Satellite: 브이월드 위성 지도
+ * 📤 【데이터 연동 관계】
+ * - map, layers ← mapConfig.js에서 가져온 레이어들
+ * - UI 버튼 상태 동기화
  * 
- * 📍 오버레이 레이어 (Overlay Layers) - 독립적 토글
- * - Admin Layer: 행정구역 경계선
- * - POI Layer: 관심지점 (특별 처리 포함)
- * - Draw Layer: 사용자 그리기 결과
- * - Text Layer: 사용자 텍스트 라벨
- * 
- * 🔧 【특별 기능】
- * - POI 레이어 연동: 활성화 시 검색 버튼 표시, 자동 검색 실행
- * - 상태 조회: 현재 모든 레이어의 활성화 상태 반환
- * - 일괄 제어: 모든 오버레이 레이어 한 번에 숨기기
- * - UI 동기화: 프로그래밍 방식 변경 시에도 UI 상태 업데이트
+ * � 【상태 관리】
+ * - 베이스 레이어 상호 배타적 활성화
+ * - 오버레이 레이어 독립적 토글
+ * - UI 버튼 상태와 레이어 상태 동기화
  */
 
-let gisMap = null;
-let baseLayers = null;
-let overlayLayers = null;
+import { map, osmLayer, vworldLayer, satelliteLayer, adminLayer, poiLayer, vectorLayer, updateStatus, loadAdminData } from './mapConfig.js';
 
 /**
- * 레이어 매니저 초기화
+ * 베이스 레이어 전환 (새로운 모듈화 시스템)
+ * @param {string} layerType - 전환할 레이어 타입 ('osm', 'vworld', 'satellite')
  */
+export function switchBaseLayer(layerType) {
+    // 새로운 시스템 사용
+    if (baseLayers) {
+        setBaseLayer(layerType);
+        return;
+    }
+    
+    // 기존 시스템 호환성 유지
+    if (osmLayer && vworldLayer && satelliteLayer) {
+        // 모든 베이스 레이어 비활성화
+        osmLayer.setVisible(false);
+        vworldLayer.setVisible(false);
+        satelliteLayer.setVisible(false);
+        
+        // 선택된 레이어만 활성화
+        switch(layerType) {
+            case 'osm':
+                osmLayer.setVisible(true);
+                if (updateStatus) updateStatus('OSM 지도로 전환');
+                break;
+            case 'vworld':
+                vworldLayer.setVisible(true);
+                if (updateStatus) updateStatus('VWorld 기본지도로 전환');
+                break;
+            case 'satellite':
+                satelliteLayer.setVisible(true);
+                if (updateStatus) updateStatus('VWorld 위성지도로 전환');
+                break;
+        }
+        
+        // UI 버튼 상태 업데이트
+        updateBaseLayerButtons(layerType);
+    }
+}
+
+/**
+ * 오버레이 레이어 토글 (통합 시스템)
+ * @param {string} layerType - 토글할 레이어 타입 ('admin', 'poi', 'vector')
+ */
+export function toggleLayer(layerType) {
+    // 새로운 시스템 사용
+    if (overlayLayers) {
+        const result = toggleOverlayLayer(layerType);
+        return result;
+    }
+    
+    // 기존 시스템 호환성 유지
+    let layer;
+    let layerName;
+    
+    switch(layerType) {
+        case 'admin':
+            layer = adminLayer;
+            layerName = '행정구역';
+            break;
+        case 'poi':
+            layer = poiLayer;
+            layerName = 'POI';
+            break;
+        case 'vector':
+            layer = vectorLayer;
+            layerName = '그리기';
+            break;
+        default:
+            return;
+    }
+    
+    if (layer) {
+        const isVisible = layer.getVisible();
+        layer.setVisible(!isVisible);
+        
+        if (updateStatus) updateStatus(`${layerName} 레이어 ${!isVisible ? '활성화' : '비활성화'}`);
+        
+        // UI 버튼 상태 업데이트
+        updateLayerButton(layerType, !isVisible);
+        
+        // 특별 처리
+        if (layerType === 'poi') {
+            handlePOILayerToggle(!isVisible);
+        } else if (layerType === 'admin' && !isVisible) {
+            // 행정구역 레이어 활성화 시 데이터 로드
+            if (loadAdminData) {
+                loadAdminData();
+            }
+        }
+        
+        return !isVisible;
+    }
+}
+
+/**
+ * 베이스 레이어 버튼 상태 업데이트
+ * @param {string} activeLayer - 활성화된 레이어 타입
+ */
+function updateBaseLayerButtons(activeLayer) {
+    // 라디오 버튼 업데이트
+    const radios = document.querySelectorAll('input[name="baseLayer"]');
+    radios.forEach(radio => {
+        radio.checked = (radio.value === activeLayer);
+    });
+    
+    // 기존 버튼 스타일도 지원 (있다면)
+    const buttons = document.querySelectorAll('.base-layer-btn');
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.layer === activeLayer) {
+            btn.classList.add('active');
+        }
+    });
+}
+
+/**
+ * 개별 레이어 버튼 상태 업데이트
+ * @param {string} layerType - 레이어 타입
+ * @param {boolean} isVisible - 레이어 가시성 상태
+ */
+function updateLayerButton(layerType, isVisible) {
+    // 체크박스 업데이트
+    const checkbox = document.querySelector(`input#${layerType}`);
+    if (checkbox) {
+        checkbox.checked = isVisible;
+    }
+    
+    // 기존 버튼 스타일도 지원 (있다면)
+    const button = document.querySelector(`[data-layer="${layerType}"]`);
+    if (button) {
+        if (isVisible) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    }
+}
+
+/**
+ * 모든 오버레이 레이어 숨기기 (통합 시스템)
+ */
+export function hideAllOverlays() {
+    // 새로운 시스템 사용
+    if (overlayLayers) {
+        hideAllOverlayLayers();
+        return;
+    }
+    
+    // 기존 시스템 호환성 유지
+    if (adminLayer) adminLayer.setVisible(false);
+    if (poiLayer) poiLayer.setVisible(false);
+    if (vectorLayer) vectorLayer.setVisible(false);
+    
+    // UI 버튼 상태 업데이트
+    updateLayerButton('admin', false);
+    updateLayerButton('poi', false);
+    updateLayerButton('vector', false);
+    
+    if (updateStatus) updateStatus('모든 오버레이 레이어 숨김');
+}
+
+/**
+ * 현재 레이어 상태 조회 (통합 시스템)
+ * @returns {Object} 각 레이어의 가시성 상태
+ */
+export function getLayerStatus() {
+    // 새로운 시스템 사용
+    if (baseLayers && overlayLayers) {
+        return getLayerStates();
+    }
+    
+    // 기존 시스템 호환성 유지
+    return {
+        base: {
+            osm: osmLayer ? osmLayer.getVisible() : false,
+            vworld: vworldLayer ? vworldLayer.getVisible() : false,
+            satellite: satelliteLayer ? satelliteLayer.getVisible() : false
+        },
+        overlay: {
+            admin: adminLayer ? adminLayer.getVisible() : false,
+            poi: poiLayer ? poiLayer.getVisible() : false,
+            vector: vectorLayer ? vectorLayer.getVisible() : false
+        }
+    };
+}
+// 전역 변수들
+let gisMap;
+let baseLayers;
+let overlayLayers;
+
 export function initializeLayerManager(map, baseLayerGroup, overlayLayerGroup) {
     gisMap = map;
     baseLayers = baseLayerGroup;
@@ -218,23 +385,21 @@ function updateOverlayLayerUI(layerName, visible) {
  * POI 레이어 특별 처리
  */
 function handlePOILayerToggle(visible) {
-    // POI 검색 버튼 표시/숨김
-    const poiSearchButton = document.getElementById('poi-search-btn');
-    const poiListPanel = document.getElementById('poi-list-panel');
-    
-    if (poiSearchButton) {
-        poiSearchButton.style.display = visible ? 'block' : 'none';
+    // 이 주변에서 다시 검색 버튼 표시/숨김
+    const researchButton = document.getElementById('research-poi-btn');
+    if (researchButton) {
+        researchButton.style.display = visible ? 'block' : 'none';
     }
     
-    if (poiListPanel) {
-        if (!visible) {
-            poiListPanel.style.display = 'none';
-        }
+    // POI 리스트 패널 처리
+    const poiListPanel = document.getElementById('poiListPanel');
+    if (poiListPanel && !visible) {
+        poiListPanel.style.display = 'none';
     }
     
-    // POI 레이어 활성화 시 자동 검색 실행 (선택사항)
-    if (visible && window.gisModules && window.gisModules.poi) {
-        // 자동 검색은 나중에 POI 모듈에서 구현
-        console.log('🔍 POI 레이어가 활성화되었습니다. 자동 검색을 준비합니다.');
+    // POI 레이어 활성화 시 자동 검색 실행
+    if (visible && window.searchNearbyPOIs) {
+        console.log('🔍 POI 레이어가 활성화되었습니다. 자동 검색을 시작합니다.');
+        window.searchNearbyPOIs();
     }
 }

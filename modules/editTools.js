@@ -31,3 +31,227 @@
  * - 모드 전환 시 기존 인터랙션 자동 정리
  * - 연관 데이터 일관성 유지
  */
+
+import { map, vectorSource, vectorLayer, updateStatus } from './mapConfig.js';
+
+// 편집 도구 상태
+let selectInteraction = null;
+let modifyInteraction = null;
+let isEditMode = false;
+let isSelectDeleteMode = false;
+
+/**
+ * 편집 모드 활성화/비활성화
+ */
+export function toggleEditMode() {
+    if (isEditMode) {
+        disableEditMode();
+    } else {
+        enableEditMode();
+    }
+}
+
+/**
+ * 편집 모드 활성화
+ */
+function enableEditMode() {
+    // 다른 모드 비활성화
+    if (isSelectDeleteMode) {
+        disableSelectDeleteMode();
+    }
+    
+    // 그리기 모드 비활성화
+    if (window.currentTool) {
+        window.currentTool = null;
+        // 모든 그리기 도구 버튼 비활성화
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.classList.remove('active');
+            // 버튼 텍스트가 '취소'인 경우 원래 텍스트로 복원
+            if (btn.textContent === '취소') {
+                const buttonId = btn.id;
+                switch(buttonId) {
+                    case 'textBtn': btn.textContent = '텍스트'; break;
+                    case 'lineBtn': btn.textContent = '선'; break;
+                    case 'polygonBtn': btn.textContent = '면'; break;
+                    case 'circleBtn': btn.textContent = '원'; break;
+                    case 'pointBtn': btn.textContent = '점'; break;
+                }
+            }
+        });
+    }
+    
+    isEditMode = true;
+    
+    // 편집 모드 버튼 활성화 스타일
+    const editButton = document.getElementById('editBtn');
+    if (editButton) {
+        editButton.classList.add('active');
+        editButton.textContent = '편집 종료';
+    }
+    
+    // Select 인터랙션 생성
+    selectInteraction = new ol.interaction.Select({
+        layers: [vectorLayer],
+        style: new ol.style.Style({
+            stroke: new ol.style.Stroke({
+                color: '#ff0000',
+                width: 3
+            }),
+            fill: new ol.style.Fill({
+                color: 'rgba(255, 0, 0, 0.1)'
+            }),
+            image: new ol.style.Circle({
+                radius: 8,
+                fill: new ol.style.Fill({ color: '#ff0000' }),
+                stroke: new ol.style.Stroke({ color: '#fff', width: 2 })
+            })
+        })
+    });
+    
+    // Modify 인터랙션 생성
+    modifyInteraction = new ol.interaction.Modify({
+        features: selectInteraction.getFeatures()
+    });
+    
+    map.addInteraction(selectInteraction);
+    map.addInteraction(modifyInteraction);
+    
+    updateStatus('편집 모드 활성화 - 도형을 선택한 후 점을 드래그하여 수정하세요');
+}
+
+/**
+ * 편집 모드 비활성화
+ */
+function disableEditMode() {
+    isEditMode = false;
+    
+    // 편집 모드 버튼 비활성화 스타일
+    const editButton = document.getElementById('editBtn');
+    if (editButton) {
+        editButton.classList.remove('active');
+        editButton.textContent = '편집 모드';
+    }
+    
+    if (selectInteraction) {
+        map.removeInteraction(selectInteraction);
+        selectInteraction = null;
+    }
+    
+    if (modifyInteraction) {
+        map.removeInteraction(modifyInteraction);
+        modifyInteraction = null;
+    }
+    
+    updateStatus('편집 모드 비활성화');
+}
+
+/**
+ * 선택 삭제 모드 활성화/비활성화
+ */
+export function toggleSelectDeleteMode() {
+    if (isSelectDeleteMode) {
+        disableSelectDeleteMode();
+    } else {
+        enableSelectDeleteMode();
+    }
+}
+
+/**
+ * 선택 삭제 모드 활성화
+ */
+function enableSelectDeleteMode() {
+    // 다른 모드 비활성화
+    if (isEditMode) {
+        disableEditMode();
+    }
+    
+    isSelectDeleteMode = true;
+    
+    // 버튼 텍스트 변경
+    const deleteButton = document.querySelector('.clear-btn');
+    if (deleteButton && deleteButton.textContent === '선택 삭제') {
+        deleteButton.textContent = '삭제 취소';
+    }
+    
+    // 지도 클릭 이벤트 핸들러 설정
+    window.deleteClickHandler = function(event) {
+        event.preventDefault();
+        
+        // 클릭한 위치의 피처 찾기
+        const feature = map.forEachFeatureAtPixel(event.pixel, function(feature, layer) {
+            if (layer === vectorLayer) {
+                return feature;
+            }
+        });
+        
+        if (feature) {
+            // 피처 삭제
+            vectorSource.removeFeature(feature);
+            updateStatus('도형이 삭제되었습니다');
+        }
+    };
+    
+    // 우클릭으로 삭제 모드 종료
+    window.deleteRightClickHandler = function(event) {
+        event.preventDefault();
+        disableSelectDeleteMode();
+        return false;
+    };
+    
+    map.on('click', window.deleteClickHandler);
+    map.on('contextmenu', window.deleteRightClickHandler);
+    
+    updateStatus('선택 삭제 모드 활성화 - 삭제할 도형을 클릭하세요 (우클릭으로 종료)');
+}
+
+/**
+ * 선택 삭제 모드 비활성화
+ */
+function disableSelectDeleteMode() {
+    isSelectDeleteMode = false;
+    
+    // 버튼 텍스트 복원
+    const deleteButton = document.querySelector('.clear-btn');
+    if (deleteButton && deleteButton.textContent === '삭제 취소') {
+        deleteButton.textContent = '선택 삭제';
+    }
+    
+    // 이벤트 핸들러 제거
+    if (window.deleteClickHandler) {
+        map.un('click', window.deleteClickHandler);
+        window.deleteClickHandler = null;
+    }
+    
+    if (window.deleteRightClickHandler) {
+        map.un('contextmenu', window.deleteRightClickHandler);
+        window.deleteRightClickHandler = null;
+    }
+    
+    updateStatus('선택 삭제 모드 비활성화');
+}
+
+/**
+ * 모든 그리기 삭제
+ */
+export function clearAllDrawings() {
+    vectorSource.clear();
+    
+    // 팝업들도 닫기
+    if (window.closePOIPopup) {
+        window.closePOIPopup();
+    }
+    
+    updateStatus('모든 그리기가 삭제되었습니다');
+}
+
+/**
+ * 현재 모든 편집 모드 비활성화
+ */
+export function disableAllEditModes() {
+    if (isEditMode) {
+        disableEditMode();
+    }
+    if (isSelectDeleteMode) {
+        disableSelectDeleteMode();
+    }
+}
