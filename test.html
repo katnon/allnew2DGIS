@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D GIS Application</title>
+    
+    <!-- OpenLayers CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@8.2.0/ol.css" type="text/css">
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #f0f0f0;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .main-content {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .layer-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 200px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        
+        .poi-list-panel {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 300px;
+            max-height: 400px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+        }
+        
+        .poi-list-header {
+            margin: 0;
+            padding: 10px;
+            background: white;
+            color: #2c3e50;
+            border: 1px solid #ddd;
+            border-radius: 5px 5px 0 0;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .poi-list-content {
+            max-height: 350px;
+            overflow-y: auto;
+            padding: 0;
+        }
+        
+        .poi-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .poi-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .poi-item:last-child {
+            border-bottom: none;
+        }
+        
+        .poi-name {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 3px;
+            font-size: 13px;
+        }
+        
+        .poi-category {
+            color: #7f8c8d;
+            font-size: 11px;
+            margin-bottom: 2px;
+        }
+        
+        .poi-address {
+            color: #95a5a6;
+            font-size: 11px;
+            line-height: 1.3;
+        }
+        
+        .poi-distance {
+            color: #3498db;
+            font-size: 10px;
+            font-weight: 500;
+        }
+        
+        .research-button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .research-button:hover {
+            background: #2980b9;
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 0 6px 16px rgba(52, 152, 219, 0.4);
+        }
+        
+        .research-button:active {
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .tools-panel {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 120px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        
+        .panel-header {
+            margin: 0;
+            padding: 10px;
+            background: #3498db;
+            color: white;
+            border-radius: 5px 5px 0 0;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        
+        .panel-header:hover {
+            background: #2980b9;
+        }
+        
+        .panel-toggle {
+            font-size: 12px;
+            transition: transform 0.3s ease;
+        }
+        
+        .panel-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+        
+        .layer-panel h4 {
+            margin: 0;
+            padding: 10px;
+            background: #3498db;
+            color: white;
+            border-radius: 5px 5px 0 0;
+            font-size: 14px;
+        }
+        
+        .layer-content {
+            padding: 10px;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .tools-content {
+            padding: 8px;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .panel-content.collapsed {
+            max-height: 0 !important;
+            opacity: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        
+        .tools-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .tool-btn {
+            padding: 8px;
+            background: white;
+            color: #2c3e50;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .tool-btn:hover {
+            background: #f8f9fa;
+            border-color: #3498db;
+        }
+        
+        .tool-btn.active {
+            background: #e74c3c;
+            color: white;
+            border-color: #e74c3c;
+        }
+        
+        .clear-tools {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        
+        .clear-btn {
+            padding: 6px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        .clear-btn:hover {
+            background: #7f8c8d;
+        }
+        
+        .layer-group {
+            margin-bottom: 15px;
+        }
+        
+        .layer-group h5 {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .layer-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 11px;
+        }
+        
+        .layer-item input[type="radio"],
+        .layer-item input[type="checkbox"] {
+            margin-right: 8px;
+        }
+        
+        .layer-item label {
+            cursor: pointer;
+            flex: 1;
+        }
+        
+        .status-bar {
+            height: 25px;
+            background: #34495e;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            font-size: 12px;
+            border-top: 1px solid #2c3e50;
+        }
+        
+        .text-input-popup {
+            position: absolute;
+            background: white;
+            border: 2px solid #3498db;
+            border-radius: 5px;
+            padding: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 2000;
+            display: none;
+        }
+        
+        .text-input-popup input {
+            width: 200px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            margin-right: 5px;
+        }
+        
+        .text-input-popup button {
+            padding: 5px 10px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 0 2px;
+        }
+        
+        .text-input-popup button:hover {
+            background: #2980b9;
+        }
+        
+        .text-input-popup .cancel-btn {
+            background: #95a5a6;
+        }
+        
+        .text-input-popup .cancel-btn:hover {
+            background: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        
+        <!-- 메인 콘텐츠 -->
+        <div class="main-content">
+            <div class="map-container">
+                <div id="map"></div>
+                
+                <!-- POI 리스트 패널 -->
+                <div class="poi-list-panel" id="poiListPanel">
+                    <div class="poi-list-header">
+                        📍 주변 검색 결과
+                        <span id="poiCount">0</span>
+                    </div>
+                    <div class="poi-list-content" id="poiListContent">
+                        <!-- POI 목록이 여기에 표시됩니다 -->
+                    </div>
+                </div>
+                
+                <!-- 재검색 버튼 -->
+                <button class="research-button" id="researchButton" onclick="searchNearbyPOIs()">
+                    🔍 이 주변에서 다시 검색
+                </button>
+                
+                <!-- 레이어 패널 -->
+                <div class="layer-panel">
+                    <h4 class="panel-header" onclick="togglePanel('layer')">
+                        📋 레이어
+                        <span class="panel-toggle" id="layerToggle">▼</span>
+                    </h4>
+                    <div class="layer-content panel-content" id="layerContent">
+                        <div class="layer-group">
+                            <h5>🗺️ 베이스맵</h5>
+                            <div class="layer-item">
+                                <input type="radio" id="osm" name="basemap" onchange="changeBaseMap('osm')">
+                                <label for="osm">OpenStreetMap</label>
+                            </div>
+                            <div class="layer-item">
+                                <input type="radio" id="vworld" name="basemap" checked onchange="changeBaseMap('vworld')">
+                                <label for="vworld">VWorld 기본지도</label>
+                            </div>
+                            <div class="layer-item">
+                                <input type="radio" id="satellite" name="basemap" onchange="changeBaseMap('satellite')">
+                                <label for="satellite">VWorld 위성지도</label>
+                            </div>
+                        </div>
+                        
+                        <div class="layer-group">
+                            <h5>📊 오버레이</h5>
+                            <div class="layer-item">
+                                <input type="checkbox" id="admin" onchange="toggleAdminLayer()">
+                                <label for="admin">행정구역</label>
+                            </div>
+                            <div class="layer-item">
+                                <input type="checkbox" id="poi" onchange="togglePOILayer()">
+                                <label for="poi">주변검색(POI)</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 도구 패널 -->
+                <div class="tools-panel">
+                    <h4 class="panel-header" onclick="togglePanel('tools')">
+                        🛠️ 도구
+                        <span class="panel-toggle" id="toolsToggle">▼</span>
+                    </h4>
+                    <div class="tools-content panel-content" id="toolsContent">
+                        <div class="tools-grid">
+                            <button class="tool-btn" id="textBtn" onclick="toggleDrawTool('text')">텍스트</button>
+                            <button class="tool-btn" id="lineBtn" onclick="toggleDrawTool('line')">선</button>
+                            <button class="tool-btn" id="polygonBtn" onclick="toggleDrawTool('polygon')">면</button>
+                            <button class="tool-btn" id="circleBtn" onclick="toggleDrawTool('circle')">원</button>
+                        </div>
+                        <div class="clear-tools">
+                            <button class="clear-btn" onclick="deleteSelected()">선택 삭제</button>
+                            <button class="clear-btn" onclick="clearAll()">전체 삭제</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 상태바 -->
+            <div class="status-bar">
+                <span id="statusText">지도 로딩 중...</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 텍스트 입력 팝업 -->
+    <div class="text-input-popup" id="textInputPopup">
+        <input type="text" id="textInput" placeholder="텍스트를 입력하세요">
+        <button onclick="confirmText()">확인</button>
+        <button class="cancel-btn" onclick="cancelText()">취소</button>
+    </div>
+
+    <!-- OpenLayers JS -->
+    <script src="https://cdn.jsdelivr.net/npm/ol@8.2.0/dist/ol.js"></script>
+    
+    <script>
+        // 전역 변수
+        let map;
+        let vectorSource;
+        let vectorLayer;
+        let adminSource;
+        let adminLayer;
+        let poiSource;
+        let poiLayer;
+        let currentDraw;
+        let currentTool = null;
+        let textClickListener;
+        let pendingTextCoordinate = null;
+        
+        // Kakao REST API 키
+        const KAKAO_REST_KEY = '01189c8b083647188b7952d1b7d92d9c';
+        
+        // VWorld API 키
+        const VWORLD_KEY = '32775BCF-A14A-3B57-B0C6-C8C0743E7DD1';
+        
+        // 베이스맵 레이어들
+        let osmLayer, vworldLayer, satelliteLayer;
+        
+        // 지도 초기화
+        function initMap() {
+            // 벡터 소스와 레이어 (그리기용)
+            vectorSource = new ol.source.Vector();
+            vectorLayer = new ol.layer.Vector({
+                source: vectorSource,
+                style: function(feature) {
+                    const geometryType = feature.getGeometry().getType();
+                    const isSelected = feature.get('selected');
+                    
+                    if (geometryType === 'Point') {
+                        // 텍스트 레이블
+                        const text = feature.get('text');
+                        if (text) {
+                            return new ol.style.Style({
+                                text: new ol.style.Text({
+                                    text: text,
+                                    font: '14px Arial',
+                                    fill: new ol.style.Fill({ color: '#000' }),
+                                    stroke: new ol.style.Stroke({ color: '#fff', width: 2 }),
+                                    offsetY: -10
+                                }),
+                                image: new ol.style.Circle({
+                                    radius: 4,
+                                    fill: new ol.style.Fill({ color: isSelected ? '#ff0000' : '#ff6600' }),
+                                    stroke: new ol.style.Stroke({ color: '#fff', width: 1 })
+                                })
+                            });
+                        }
+                        // 일반 포인트
+                        return new ol.style.Style({
+                            image: new ol.style.Circle({
+                                radius: 6,
+                                fill: new ol.style.Fill({ color: isSelected ? '#ff0000' : '#ff6600' }),
+                                stroke: new ol.style.Stroke({ color: '#fff', width: 2 })
+                            })
+                        });
+                    } else if (geometryType === 'LineString') {
+                        return new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: isSelected ? '#ff0000' : '#3399CC',
+                                width: 3
+                            })
+                        });
+                    } else if (geometryType === 'Polygon') {
+                        return new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: isSelected ? '#ff0000' : '#ffcc33',
+                                width: 2
+                            }),
+                            fill: new ol.style.Fill({
+                                color: isSelected ? 'rgba(255, 0, 0, 0.1)' : 'rgba(255, 255, 0, 0.1)'
+                            })
+                        });
+                    } else if (geometryType === 'Circle') {
+                        return new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: isSelected ? '#ff0000' : '#cc33ff',
+                                width: 2
+                            }),
+                            fill: new ol.style.Fill({
+                                color: isSelected ? 'rgba(255, 0, 0, 0.1)' : 'rgba(204, 51, 255, 0.1)'
+                            })
+                        });
+                    }
+                }
+            });
+            
+            // 행정구역 레이어
+            adminSource = new ol.source.Vector();
+            adminLayer = new ol.layer.Vector({
+                source: adminSource,
+                style: new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: 'rgba(0, 0, 255, 0.8)',
+                        width: 1
+                    }),
+                    fill: new ol.style.Fill({
+                        color: 'rgba(0, 0, 255, 0.05)'
+                    })
+                })
+            });
+            
+            // POI 레이어
+            poiSource = new ol.source.Vector();
+            poiLayer = new ol.layer.Vector({
+                source: poiSource,
+                style: new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 8,
+                        fill: new ol.style.Fill({ color: '#ff0000' }),
+                        stroke: new ol.style.Stroke({ color: '#fff', width: 2 })
+                    })
+                })
+            });
+            
+            // 베이스맵 레이어들 생성
+            osmLayer = new ol.layer.Tile({
+                source: new ol.source.OSM()
+            });
+            
+            vworldLayer = new ol.layer.Tile({
+                source: new ol.source.XYZ({
+                    url: `https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Base/{z}/{y}/{x}.png`
+                })
+            });
+            
+            satelliteLayer = new ol.layer.Tile({
+                source: new ol.source.XYZ({
+                    url: `https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Satellite/{z}/{y}/{x}.jpeg`
+                })
+            });
+            
+            // 지도 생성 (VWorld를 기본으로)
+            map = new ol.Map({
+                target: 'map',
+                layers: [
+                    vworldLayer,  // 기본 베이스맵
+                    adminLayer,
+                    poiLayer,
+                    vectorLayer
+                ],
+                view: new ol.View({
+                    center: ol.proj.fromLonLat([127.0276, 37.4979]), // 강남역
+                    zoom: 11
+                })
+            });
+            
+            // 오버레이 레이어들 기본적으로 비활성화
+            adminLayer.setVisible(false);
+            poiLayer.setVisible(false);
+            
+            // 클릭 이벤트 (피처 선택용)
+            map.on('click', function(event) {
+                if (currentTool) return; // 그리기 모드일 때는 선택 안함
+                
+                // 모든 피처의 선택 상태 해제
+                vectorSource.getFeatures().forEach(feature => {
+                    feature.set('selected', false);
+                });
+                
+                // 클릭된 피처 찾기
+                const feature = map.forEachFeatureAtPixel(event.pixel, function(feature, layer) {
+                    if (layer === vectorLayer) return feature;
+                });
+                
+                if (feature) {
+                    feature.set('selected', true);
+                }
+                
+                // 레이어 새로고침
+                vectorLayer.getSource().changed();
+            });
+            
+            updateStatus('지도 로딩 완료');
+        }
+        
+        // 베이스맵 변경
+        function changeBaseMap(type) {
+            // 모든 베이스맵 제거
+            map.removeLayer(osmLayer);
+            map.removeLayer(vworldLayer);
+            map.removeLayer(satelliteLayer);
+            
+            // 선택된 베이스맵 추가
+            switch(type) {
+                case 'osm':
+                    map.getLayers().insertAt(0, osmLayer);
+                    break;
+                case 'vworld':
+                    map.getLayers().insertAt(0, vworldLayer);
+                    break;
+                case 'satellite':
+                    map.getLayers().insertAt(0, satelliteLayer);
+                    break;
+            }
+        }
+        
+        // 행정구역 레이어 토글
+        function toggleAdminLayer() {
+            const checkbox = document.getElementById('admin');
+            const isChecked = checkbox.checked;
+            
+            adminLayer.setVisible(isChecked);
+            
+            if (isChecked && adminSource.getFeatures().length === 0) {
+                // 데이터가 없으면 로드
+                loadAdminBoundaries();
+            } else if (isChecked && adminSource.getFeatures().length > 0) {
+                // 이미 로드된 데이터가 있으면 상태만 업데이트
+                updateStatus(`행정구역 표시 (${adminSource.getFeatures().length}개)`);
+            } else {
+                // 레이어 숨김
+                updateStatus('행정구역 숨김');
+            }
+        }
+        
+        // 행정구역 데이터 로드
+        function loadAdminBoundaries() {
+            updateStatus('행정구역 데이터 로딩 중...');
+            
+            fetch('/public/HangJeongDong_ver20250401.geojson')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const features = new ol.format.GeoJSON().readFeatures(data, {
+                        featureProjection: 'EPSG:3857'
+                    });
+                    adminSource.addFeatures(features);
+                    updateStatus(`행정구역 데이터 로드 완료 (${features.length}개)`);
+                    console.log(`행정구역 ${features.length}개 로드됨`);
+                })
+                .catch(error => {
+                    console.error('행정구역 데이터 로드 실패:', error);
+                    updateStatus('행정구역 데이터 로드 실패 - 파일을 확인하세요');
+                    
+                    // 대안 경로들 시도
+                    tryAlternativePaths();
+                });
+        }
+        
+        // 대안 경로들 시도
+        function tryAlternativePaths() {
+            const alternativePaths = [
+                'HangJeongDong_ver20250401.geojson',
+                './public/HangJeongDong_ver20250401.geojson',
+                '/HangJeongDong_ver20250401.geojson'
+            ];
+            
+            let pathIndex = 0;
+            
+            function tryNextPath() {
+                if (pathIndex >= alternativePaths.length) {
+                    updateStatus('행정구역 데이터를 찾을 수 없습니다');
+                    return;
+                }
+                
+                const path = alternativePaths[pathIndex];
+                updateStatus(`대안 경로 시도 중: ${path}`);
+                
+                fetch(path)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        const features = new ol.format.GeoJSON().readFeatures(data, {
+                            featureProjection: 'EPSG:3857'
+                        });
+                        adminSource.addFeatures(features);
+                        updateStatus(`행정구역 데이터 로드 완료 (${features.length}개) - 경로: ${path}`);
+                        console.log(`행정구역 ${features.length}개 로드됨 (경로: ${path})`);
+                    })
+                    .catch(error => {
+                        console.error(`경로 ${path} 실패:`, error);
+                        pathIndex++;
+                        tryNextPath();
+                    });
+            }
+            
+            tryNextPath();
+        }
+        
+        // 그리기 도구 토글
+        function toggleDrawTool(type) {
+            const button = document.getElementById(type + 'Btn');
+            
+            if (currentTool === type) {
+                // 현재 활성화된 도구를 다시 클릭한 경우 - 비활성화
+                if (currentDraw) {
+                    map.removeInteraction(currentDraw);
+                    currentDraw = null;
+                }
+                if (textClickListener) {
+                    removeTextListener();
+                }
+                
+                currentTool = null;
+                button.textContent = getToolName(type);
+                button.classList.remove('active');
+                updateStatus('그리기 도구 비활성화');
+            } else {
+                // 다른 도구로 전환하거나 새로 활성화
+                // 기존 도구 정리
+                if (currentDraw) {
+                    map.removeInteraction(currentDraw);
+                    currentDraw = null;
+                }
+                if (textClickListener) {
+                    removeTextListener();
+                }
+                
+                // 모든 버튼 비활성화
+                ['text', 'line', 'polygon', 'circle'].forEach(toolType => {
+                    const btn = document.getElementById(toolType + 'Btn');
+                    btn.textContent = getToolName(toolType);
+                    btn.classList.remove('active');
+                });
+                
+                // 새 도구 활성화
+                currentTool = type;
+                button.textContent = '취소';
+                button.classList.add('active');
+                
+                if (type === 'text') {
+                    onTextClick();
+                } else {
+                    setDrawTool(type);
+                }
+                
+                updateStatus(`${getToolName(type)} 도구 활성화`);
+            }
+        }
+        
+        // 도구 이름 반환
+        function getToolName(type) {
+            const names = {
+                'text': '텍스트',
+                'line': '선',
+                'polygon': '면',
+                'circle': '원'
+            };
+            return names[type] || type;
+        }
+        
+        // 그리기 도구 설정
+        function setDrawTool(type) {
+            // 기존 그리기 인터랙션 제거
+            if (currentDraw) {
+                map.removeInteraction(currentDraw);
+            }
+            
+            let geometryType;
+            switch(type) {
+                case 'line':
+                    geometryType = 'LineString';
+                    break;
+                case 'polygon':
+                    geometryType = 'Polygon';
+                    break;
+                case 'circle':
+                    geometryType = 'Circle';
+                    break;
+                default:
+                    return;
+            }
+            
+            currentDraw = new ol.interaction.Draw({
+                source: vectorSource,
+                type: geometryType
+            });
+            
+            // 우클릭 이벤트 처리
+            currentDraw.on('drawstart', function(event) {
+                const sketch = event.feature;
+                
+                // 우클릭 이벤트 리스너 추가
+                const handleRightClick = function(evt) {
+                    evt.preventDefault();
+                    
+                    if (type === 'line') {
+                        // 선 그리기: 마지막 지점에서 완성
+                        currentDraw.finishDrawing();
+                    } else if (type === 'polygon' || type === 'circle') {
+                        // 면/원 그리기: 그리기 중단하고 도구 비활성화
+                        currentDraw.abortDrawing();
+                        toggleDrawTool(type); // 도구 비활성화
+                    }
+                    
+                    // 이벤트 리스너 제거
+                    map.getViewport().removeEventListener('contextmenu', handleRightClick);
+                };
+                
+                map.getViewport().addEventListener('contextmenu', handleRightClick);
+                
+                // 그리기 완료 또는 중단 시 이벤트 리스너 정리
+                const cleanup = function() {
+                    map.getViewport().removeEventListener('contextmenu', handleRightClick);
+                };
+                
+                currentDraw.once('drawend', cleanup);
+                currentDraw.once('drawabort', cleanup);
+            });
+            
+            map.addInteraction(currentDraw);
+        }
+        
+        // 텍스트 도구 클릭 처리
+        function onTextClick() {
+            textClickListener = function(event) {
+                pendingTextCoordinate = event.coordinate;
+                showTextInputPopup(event.pixel);
+            };
+            map.on('click', textClickListener);
+        }
+        
+        // 텍스트 클릭 리스너 제거
+        function removeTextListener() {
+            if (textClickListener) {
+                map.un('click', textClickListener);
+                textClickListener = null;
+            }
+            hideTextInputPopup();
+        }
+        
+        // 텍스트 입력 팝업 표시
+        function showTextInputPopup(pixel) {
+            const popup = document.getElementById('textInputPopup');
+            const input = document.getElementById('textInput');
+            
+            popup.style.left = pixel[0] + 'px';
+            popup.style.top = pixel[1] + 'px';
+            popup.style.display = 'block';
+            
+            input.value = '';
+            input.focus();
+        }
+        
+        // 텍스트 입력 팝업 숨기기
+        function hideTextInputPopup() {
+            document.getElementById('textInputPopup').style.display = 'none';
+            pendingTextCoordinate = null;
+        }
+        
+        // 텍스트 확인
+        function confirmText() {
+            const text = document.getElementById('textInput').value.trim();
+            if (text && pendingTextCoordinate) {
+                const feature = new ol.Feature({
+                    geometry: new ol.geom.Point(pendingTextCoordinate),
+                    text: text
+                });
+                vectorSource.addFeature(feature);
+            }
+            hideTextInputPopup();
+        }
+        
+        // 텍스트 취소
+        function cancelText() {
+            hideTextInputPopup();
+        }
+        
+        // 선택된 피처 삭제
+        function deleteSelected() {
+            const features = vectorSource.getFeatures();
+            const toDelete = features.filter(feature => feature.get('selected'));
+            
+            toDelete.forEach(feature => {
+                vectorSource.removeFeature(feature);
+            });
+            
+            if (toDelete.length > 0) {
+                updateStatus(`${toDelete.length}개 객체 삭제됨`);
+            } else {
+                updateStatus('삭제할 객체가 선택되지 않음');
+            }
+        }
+        
+        // 모든 그리기 객체 삭제
+        function clearAll() {
+            vectorSource.clear();
+            poiSource.clear();
+            updateStatus('모든 객체 삭제됨');
+        }
+        
+        // POI 레이어 토글
+        function togglePOILayer() {
+            const checkbox = document.getElementById('poi');
+            const isChecked = checkbox.checked;
+            
+            poiLayer.setVisible(isChecked);
+            
+            const poiListPanel = document.getElementById('poiListPanel');
+            const researchButton = document.getElementById('researchButton');
+            
+            if (isChecked) {
+                // POI 검색 활성화
+                searchNearbyPOIs();
+                poiListPanel.style.display = 'block';
+                researchButton.style.display = 'block';
+            } else {
+                // POI 검색 비활성화
+                poiSource.clear();
+                poiListPanel.style.display = 'none';
+                researchButton.style.display = 'none';
+            }
+        }
+        
+        // 주변 POI 검색 (카카오 API 사용)
+        function searchNearbyPOIs() {
+            const center = ol.proj.toLonLat(map.getView().getCenter());
+            updateStatus('주변 POI 검색 중...');
+            
+            // 카테고리별 검색어 정의
+            const categories = [
+                '음식점', '카페', '병원', '약국', '편의점', 
+                '주유소', '은행', '학교', '공원', '관광명소'
+            ];
+            
+            const allPOIs = [];
+            let completedRequests = 0;
+            
+            // 각 카테고리별로 15개씩 검색
+            categories.forEach(category => {
+                const url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(category)}&x=${center[0]}&y=${center[1]}&radius=3000&size=15`;
+                
+                fetch(url, {
+                    headers: {
+                        'Authorization': `KakaoAK ${KAKAO_REST_KEY}`
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // 각 POI에 카테고리 정보 추가
+                    data.documents.forEach(poi => {
+                        poi.searchCategory = category;
+                    });
+                    allPOIs.push(...data.documents);
+                    
+                    completedRequests++;
+                    if (completedRequests === categories.length) {
+                        // 모든 검색 완료 시 처리
+                        processPOIResults(allPOIs, center);
+                    }
+                })
+                .catch(error => {
+                    console.error(`${category} POI 검색 오류:`, error);
+                    completedRequests++;
+                    if (completedRequests === categories.length) {
+                        processPOIResults(allPOIs, center);
+                    }
+                });
+            });
+        }
+        
+        // POI 검색 결과 처리
+        function processPOIResults(allPOIs, centerCoord) {
+            // 중복 제거 (같은 장소명과 주소)
+            const uniquePOIs = [];
+            const seenPlaces = new Set();
+            
+            allPOIs.forEach(poi => {
+                const key = `${poi.place_name}_${poi.address_name}`;
+                if (!seenPlaces.has(key)) {
+                    seenPlaces.add(key);
+                    
+                    // 거리 계산
+                    const poiLonLat = [parseFloat(poi.x), parseFloat(poi.y)];
+                    const distance = calculateDistance(centerCoord, poiLonLat);
+                    poi.distance = distance;
+                    
+                    uniquePOIs.push(poi);
+                }
+            });
+            
+            // 거리순 정렬 후 최대 50개
+            uniquePOIs.sort((a, b) => a.distance - b.distance);
+            const finalPOIs = uniquePOIs.slice(0, 50);
+            
+            // 지도에 POI 표시
+            addPOIToMap(finalPOIs);
+            
+            // POI 리스트 업데이트
+            updatePOIList(finalPOIs);
+            
+            updateStatus(`${finalPOIs.length}개 주변 POI 검색 완료`);
+        }
+        
+        // 거리 계산 (Haversine formula)
+        function calculateDistance(coord1, coord2) {
+            const R = 6371; // 지구 반지름 (km)
+            const dLat = (coord2[1] - coord1[1]) * Math.PI / 180;
+            const dLon = (coord2[0] - coord1[0]) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(coord1[1] * Math.PI / 180) * Math.cos(coord2[1] * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+        
+        // POI를 지도에 추가
+        function addPOIToMap(pois) {
+            poiSource.clear(); // 기존 POI 제거
+            
+            pois.forEach(poi => {
+                const coordinate = ol.proj.fromLonLat([parseFloat(poi.x), parseFloat(poi.y)]);
+                const feature = new ol.Feature({
+                    geometry: new ol.geom.Point(coordinate),
+                    name: poi.place_name,
+                    address: poi.address_name,
+                    category: poi.searchCategory,
+                    distance: poi.distance,
+                    phone: poi.phone || ''
+                });
+                poiSource.addFeature(feature);
+            });
+        }
+        
+        // POI 리스트 업데이트
+        function updatePOIList(pois) {
+            const listContent = document.getElementById('poiListContent');
+            const countElement = document.getElementById('poiCount');
+            
+            listContent.innerHTML = '';
+            countElement.textContent = pois.length;
+            
+            pois.forEach(poi => {
+                const div = document.createElement('div');
+                div.className = 'poi-item';
+                
+                const distanceText = poi.distance < 1 ? 
+                    `${Math.round(poi.distance * 1000)}m` : 
+                    `${poi.distance.toFixed(1)}km`;
+                
+                div.innerHTML = `
+                    <div class="poi-name">${poi.place_name}</div>
+                    <div class="poi-category">${poi.searchCategory}</div>
+                    <div class="poi-address">${poi.address_name}</div>
+                    <div class="poi-distance">${distanceText}</div>
+                `;
+                
+                div.onclick = () => {
+                    const coordinate = ol.proj.fromLonLat([parseFloat(poi.x), parseFloat(poi.y)]);
+                    map.getView().animate({
+                        center: coordinate,
+                        zoom: 17,
+                        duration: 500
+                    });
+                };
+                
+                listContent.appendChild(div);
+            });
+        }
+        
+        // 패널 토글 기능
+        function togglePanel(panelType) {
+            const content = document.getElementById(panelType + 'Content');
+            const toggle = document.getElementById(panelType + 'Toggle');
+            
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                toggle.textContent = '▼';
+                toggle.classList.remove('collapsed');
+            } else {
+                content.classList.add('collapsed');
+                toggle.textContent = '▶';
+                toggle.classList.add('collapsed');
+            }
+        }
+        
+        // 상태 업데이트
+        function updateStatus(message) {
+            document.getElementById('statusText').textContent = message;
+        }
+        
+        // 텍스트 입력 엔터키 처리
+        document.getElementById('textInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                confirmText();
+            }
+        });
+        
+        // 페이지 로드 시 지도 초기화
+        window.onload = function() {
+            initMap();
+            
+            // 초기화 - 행정구역은 사용자가 체크할 때만 로드
+            
+            // 전역 함수로 설정
+            window.toggleDrawTool = toggleDrawTool;
+            window.deleteSelected = deleteSelected;
+            window.clearAll = clearAll;
+            window.onTextClick = onTextClick;
+            window.removeTextListener = removeTextListener;
+            window.togglePanel = togglePanel;
+            window.togglePOILayer = togglePOILayer;
+            window.searchNearbyPOIs = searchNearbyPOIs;
+            
+            // 초기에는 모든 그리기 도구 비활성화 상태
+            
+            // REST API 상태 확인
+            updateStatus('Kakao API 연결 확인 중...');
+            
+            fetch(`https://dapi.kakao.com/v2/local/search/keyword.json?query=테스트&size=1`, {
+                headers: {
+                    'Authorization': `KakaoAK ${KAKAO_REST_KEY}`
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    updateStatus('Kakao API 연결 성공');
+                } else {
+                    updateStatus('Kakao API 연결 실패');
+                }
+            })
+            .catch(error => {
+                updateStatus('Kakao API 연결 오류');
+            });
+        };
+    </script>
+</body>
+</html>
